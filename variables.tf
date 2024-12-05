@@ -830,10 +830,17 @@ variable "container_definition" {
   default     = ""
 }
 
-variable "cloudwatch_log_group_enabled" {
+variable "cloudwatch_logging_enabled" {
   type        = bool
-  description = "A boolean to disable cloudwatch log group creation"
+  description = "A boolean to disable cloudwatch logging."
   default     = true
+}
+
+
+variable "cloudwatch_log_group" {
+  type        = string
+  description = "The cloudwatch log group the main container will log to"
+  default     = null
 }
 
 variable "alb_container_name" {

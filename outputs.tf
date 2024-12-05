@@ -106,21 +106,6 @@ output "ecs_task_definition_revision" {
   value       = module.ecs_alb_service_task.task_definition_revision
 }
 
-output "cloudwatch_log_group" {
-  description = "All outputs from `aws_cloudwatch_log_group.app`"
-  value       = aws_cloudwatch_log_group.app
-}
-
-output "cloudwatch_log_group_arn" {
-  description = "Cloudwatch log group ARN"
-  value       = join("", aws_cloudwatch_log_group.app[*].arn)
-}
-
-output "cloudwatch_log_group_name" {
-  description = "Cloudwatch log group name"
-  value       = join("", aws_cloudwatch_log_group.app[*].name)
-}
-
 output "ecs_alarms" {
   description = "All outputs from `module.ecs_cloudwatch_sns_alarms`"
   value       = module.ecs_cloudwatch_sns_alarms

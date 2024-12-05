@@ -1,12 +1,4 @@
-resource "aws_cloudwatch_log_group" "app" {
-  count = module.this.enabled && var.cloudwatch_log_group_enabled ? 1 : 0
-
-  name              = module.this.id
-  tags              = module.this.tags
-  retention_in_days = var.log_retention_in_days
-}
-
-
+data "aws_region" "this" {}
 module "alb_ingress" {
   source  = "cloudposse/alb-ingress/aws"
   version = "0.28.0"
@@ -17,9 +9,10 @@ module "alb_ingress" {
   protocol         = var.alb_ingress_protocol
   protocol_version = var.alb_ingress_protocol_version
 
-  target_type                      = var.alb_ingress_target_type
-  health_check_path                = var.alb_ingress_healthcheck_path
-  health_check_protocol            = var.alb_ingress_healthcheck_protocol
+  target_type           = var.alb_ingress_target_type
+  health_check_path     = var.alb_ingress_healthcheck_path
+  health_check_protocol = var.alb_ingress_healthcheck_protocol
+  #health_check_port                = var.alb_ingress_health_check_port
   health_check_healthy_threshold   = var.alb_ingress_health_check_healthy_threshold
   health_check_interval            = var.alb_ingress_health_check_interval
   health_check_matcher             = var.alb_ingress_health_check_matcher
@@ -61,8 +54,10 @@ module "alb_ingress" {
 }
 
 module "container_definition" {
-  source                       = "cloudposse/ecs-container-definition/aws"
-  version                      = "0.61.1"
+  source  = "cloudposse/ecs-container-definition/aws"
+  version = "0.61.1"
+  # DO NOT PASS context = module.this context
+  # it is not supported by this module
   container_name               = module.this.id
   container_image              = var.container_image
   container_memory             = var.container_memory
@@ -88,11 +83,11 @@ module "container_definition" {
     var.exec_enabled ? { initProcessEnabled = true } : {}
   )
 
-  log_configuration = var.cloudwatch_log_group_enabled ? {
+  log_configuration = var.cloudwatch_logging_enabled ? {
     logDriver = var.log_driver
     options = {
-      "awslogs-region"        = coalesce(var.aws_logs_region, data.aws_region.current.name)
-      "awslogs-group"         = join("", aws_cloudwatch_log_group.app[*].name)
+      "awslogs-region"        = coalesce(var.aws_logs_region, data.aws_region.this.name)
+      "awslogs-group"         = var.cloudwatch_log_group
       "awslogs-stream-prefix" = var.aws_logs_prefix == "" ? module.this.name : var.aws_logs_prefix
     }
     secretOptions = null
@@ -136,6 +131,7 @@ module "ecs_alb_service_task" {
   source  = "cloudposse/ecs-alb-service-task/aws"
   version = "0.76.1"
 
+  #track_latest                       = true
   alb_security_group                 = var.alb_security_group
   use_alb_security_group             = var.use_alb_security_group
   nlb_cidr_blocks                    = var.nlb_cidr_blocks
@@ -180,7 +176,13 @@ module "ecs_alb_service_task" {
 
   context = module.this.context
 }
-
+locals {
+  # TODO
+  cpu_utilization_high_alarm_actions    = ""
+  cpu_utilization_low_alarm_actions     = ""
+  memory_utilization_high_alarm_actions = ""
+  memory_utilization_low_alarm_actions  = ""
+}
 module "ecs_cloudwatch_sns_alarms" {
   source  = "cloudposse/ecs-cloudwatch-sns-alarms/aws"
   version = "0.13.1"

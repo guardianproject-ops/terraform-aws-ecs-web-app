@@ -26,9 +26,9 @@ contributors:
     gravatar: 0f605397e0ead93a68e1be26dc26481a
 
 copyrights:
-  - year: 2017
+  - year: "2017"
     name: Cloud Posse, LLC
     url: https://cpco.io/copyright
-  - year: 2024
+  - year: "2024"
     name: The Guardian Project
     url: https://guardianproject.info
