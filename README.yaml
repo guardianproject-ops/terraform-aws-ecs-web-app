@@ -1,0 +1,34 @@
+name: terraform-aws-ecs-web-app
+license: APACHE2
+gitlab_repo: guardianproject-ops/terraform-aws-ecs-web-app
+
+description: Terraform module for deploying a web app to ECS with monitoring and ALB integration
+
+introduction: |-
+  A Terraform module which implements a web app on ECS and supporting AWS resources. Forked off of the CloudPosse module [of the same name][upstream].
+
+  [upstream]: https://github.com/cloudposse/terraform-aws-ecs-web-app/tree/main
+
+usage: |-
+
+  ```terraform
+  module "module" {
+    source = "git::https://gitlab.com/guardianproject-ops/terraform-aws-ecs-web-app?ref=main"
+  }
+  ```
+
+include:
+  - docs/terraform.md
+
+contributors:
+  - name: "Abel Luck"
+    gitlab: "abelxluck"
+    gravatar: 0f605397e0ead93a68e1be26dc26481a
+
+copyrights:
+  - year: 2017
+    name: Cloud Posse, LLC
+    url: https://cpco.io/copyright
+  - year: 2024
+    name: The Guardian Project
+    url: https://guardianproject.info
