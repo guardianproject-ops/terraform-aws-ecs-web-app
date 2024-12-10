@@ -4,6 +4,12 @@ variable "container_image" {
   default     = "cloudposse/default-backend"
 }
 
+variable "container_name" {
+  type        = string
+  description = "The name of the main application container in the service, if not provided it will be genereated from the null-label"
+  default     = null
+}
+
 variable "container_repo_credentials" {
   type        = map(string)
   default     = null
@@ -198,6 +204,17 @@ variable "service_registries" {
     container_port = number
   }))
   description = "The service discovery registries for the service. The maximum number of service_registries blocks is 1. The currently supported service registry is Amazon Route 53 Auto Naming Service - `aws_service_discovery_service`; see `service_registries` docs https://www.terraform.io/docs/providers/aws/r/ecs_service.html#service_registries-1"
+  default     = []
+}
+
+
+variable "bind_mount_volumes" {
+  type = list(object({
+    host_path = optional(string)
+    name      = string
+  }))
+
+  description = "Task bind mount volume definitions as list of configuration objects. You can define multiple bind mount volumes on the same task definition."
   default     = []
 }
 
@@ -406,13 +423,25 @@ variable "alb_ingress_target_group_arn" {
   default     = ""
 }
 
-variable "alb_ingress_healthcheck_path" {
+variable "alb_ingress_target_group_name" {
+  type        = string
+  default     = ""
+  description = "Override the target group name"
+}
+
+variable "alb_ingress_health_check_path" {
   type        = string
   description = "The path of the healthcheck which the ALB checks"
   default     = "/"
 }
 
-variable "alb_ingress_healthcheck_protocol" {
+variable "alb_ingress_health_check_port" {
+  type        = string
+  description = "The path of the healthcheck which the ALB checks"
+  default     = "traffic-port"
+}
+
+variable "alb_ingress_health_check_protocol" {
   type        = string
   default     = "HTTP"
   description = "The protocol to use to connect with the target. Defaults to `HTTP`. Not applicable when `target_type` is `lambda`"
@@ -511,13 +540,23 @@ variable "nlb_ingress_target_group_arn" {
 variable "alb_stickiness_type" {
   type        = string
   default     = "lb_cookie"
-  description = "The type of sticky sessions. The only current possible value is `lb_cookie`"
+  description = "The type of sticky sessions. The possible values are `lb_cookie` or `app_cookie`"
+  validation {
+    condition     = contains(["lb_cookie", "app_cookie"], var.alb_stickiness_type)
+    error_message = "The only current possible values are lb_cookie and app_cookie for ALBs"
+  }
 }
 
 variable "alb_stickiness_cookie_duration" {
   type        = number
   default     = 86400
   description = "The time period, in seconds, during which requests from a client should be routed to the same target. After this time period expires, the load balancer-generated cookie is considered stale. The range is 1 second to 1 week (604800 seconds). The default value is 1 day (86400 seconds)"
+}
+
+variable "alb_stickiness_cookie_name" {
+  type        = string
+  default     = null
+  description = "Name of the application based cookie. AWSALB, AWSALBAPP, and AWSALBTG prefixes are reserved and cannot be used. Only needed when `stickiness_type` is app_cookie"
 }
 
 variable "alb_stickiness_enabled" {
@@ -901,4 +940,46 @@ variable "circuit_breaker_rollback_enabled" {
   type        = bool
   description = "If `true`, Amazon ECS will roll back the service if a service deployment fails"
   default     = false
+}
+
+
+
+variable "service_connect_configurations" {
+  type = list(object({
+    enabled   = bool
+    namespace = optional(string, null)
+    log_configuration = optional(object({
+      log_driver = string
+      options    = optional(map(string), null)
+      secret_option = optional(list(object({
+        name       = string
+        value_from = string
+      })), [])
+    }), null)
+    service = optional(list(object({
+      client_alias = list(object({
+        dns_name = string
+        port     = number
+      }))
+      timeout = optional(list(object({
+        idle_timeout_seconds        = optional(number, null)
+        per_request_timeout_seconds = optional(number, null)
+      })), [])
+      tls = optional(list(object({
+        kms_key  = optional(string, null)
+        role_arn = optional(string, null)
+        issuer_cert_authority = object({
+          aws_pca_authority_arn = string
+        })
+      })), [])
+      discovery_name        = optional(string, null)
+      ingress_port_override = optional(number, null)
+      port_name             = string
+    })), [])
+  }))
+  description = <<-EOT
+    The list of Service Connect configurations.
+    See `service_connect_configuration` docs https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#service_connect_configuration
+    EOT
+  default     = []
 }

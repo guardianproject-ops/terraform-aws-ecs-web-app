@@ -1,7 +1,11 @@
 data "aws_region" "this" {}
 module "alb_ingress" {
-  source  = "cloudposse/alb-ingress/aws"
-  version = "0.28.0"
+  #source  = "cloudposse/alb-ingress/aws"
+  #version = "0.28.0"
+
+  # using our fork of this module for now until
+  # this PR is merged https://github.com/cloudposse/terraform-aws-alb-ingress/pull/60
+  source = "git::https://gitlab.com/guardianproject-ops/terraform-aws-alb-ingress.git?ref=2162c1c1d39ccbd304419c0c4081b703266ee08d"
 
   vpc_id = var.vpc_id
   port   = var.container_port
@@ -9,10 +13,10 @@ module "alb_ingress" {
   protocol         = var.alb_ingress_protocol
   protocol_version = var.alb_ingress_protocol_version
 
-  target_type           = var.alb_ingress_target_type
-  health_check_path     = var.alb_ingress_healthcheck_path
-  health_check_protocol = var.alb_ingress_healthcheck_protocol
-  #health_check_port                = var.alb_ingress_health_check_port
+  target_type                      = var.alb_ingress_target_type
+  health_check_path                = var.alb_ingress_health_check_path
+  health_check_protocol            = var.alb_ingress_health_check_protocol
+  health_check_port                = var.alb_ingress_health_check_port
   health_check_healthy_threshold   = var.alb_ingress_health_check_healthy_threshold
   health_check_interval            = var.alb_ingress_health_check_interval
   health_check_matcher             = var.alb_ingress_health_check_matcher
@@ -20,6 +24,7 @@ module "alb_ingress" {
   health_check_unhealthy_threshold = var.alb_ingress_health_check_unhealthy_threshold
   default_target_group_enabled     = var.alb_ingress_enable_default_target_group
   target_group_arn                 = var.alb_ingress_target_group_arn
+  target_group_name                = var.alb_ingress_target_group_name
   load_balancing_algorithm_type    = var.alb_ingress_load_balancing_algorithm_type
 
   authenticated_paths   = var.alb_ingress_authenticated_paths
@@ -47,6 +52,7 @@ module "alb_ingress" {
   authentication_oidc_scope                  = var.authentication_oidc_scope
 
   stickiness_cookie_duration = var.alb_stickiness_cookie_duration
+  stickiness_cookie_name     = var.alb_stickiness_cookie_name
   stickiness_enabled         = var.alb_stickiness_enabled
   stickiness_type            = var.alb_stickiness_type
 
@@ -58,7 +64,7 @@ module "container_definition" {
   version = "0.61.1"
   # DO NOT PASS context = module.this context
   # it is not supported by this module
-  container_name               = module.this.id
+  container_name               = local.container_name
   container_image              = var.container_image
   container_memory             = var.container_memory
   container_memory_reservation = var.container_memory_reservation
@@ -95,14 +101,15 @@ module "container_definition" {
 }
 
 locals {
+  container_name = var.container_name == null ? module.this.id : var.container_name
   alb = {
-    container_name   = var.alb_container_name != null ? var.alb_container_name : module.this.id
+    container_name   = var.alb_container_name != null ? var.alb_container_name : local.container_name
     container_port   = var.container_port
     elb_name         = null
     target_group_arn = module.alb_ingress.target_group_arn
   }
   nlb = {
-    container_name   = var.nlb_container_name != null ? var.nlb_container_name : module.this.id
+    container_name   = var.nlb_container_name != null ? var.nlb_container_name : local.container_name
     container_port   = var.nlb_container_port
     elb_name         = null
     target_group_arn = var.nlb_ingress_target_group_arn
@@ -158,6 +165,7 @@ module "ecs_alb_service_task" {
   container_port                     = var.container_port
   nlb_container_port                 = var.nlb_container_port
   docker_volumes                     = [for volume in var.volumes : volume if length(volume.docker_volume_configuration) > 0]
+  bind_mount_volumes                 = var.bind_mount_volumes
   efs_volumes                        = [for volume in var.volumes : volume if length(volume.efs_volume_configuration) > 0]
   ecs_load_balancers                 = local.load_balancers
   deployment_controller_type         = "ECS"
@@ -173,6 +181,7 @@ module "ecs_alb_service_task" {
   circuit_breaker_rollback_enabled   = var.circuit_breaker_rollback_enabled
   permissions_boundary               = var.permissions_boundary
   runtime_platform                   = var.runtime_platform
+  service_connect_configurations     = var.service_connect_configurations
 
   context = module.this.context
 }
